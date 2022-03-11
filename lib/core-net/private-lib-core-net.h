@@ -29,6 +29,10 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS) && defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+#include <ares.h>
+#endif
+
 /*
  * Generic pieces needed to manage muxable stream protocols like h2
  */
@@ -248,7 +252,11 @@ __lws_sul_service_ripe(lws_dll2_owner_t *own, int num_own, lws_usec_t usnow);
 
 typedef struct lws_async_dns_server {
 	lws_dll2_t		list;
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	ares_channel *		ares_resolver_channel; /* ares context */
+#else
 	lws_sockaddr46 		sa46; /* nameserver */
+#endif
 
 	lws_dll2_owner_t	waiting;
 

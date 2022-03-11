@@ -518,6 +518,15 @@ lws_async_dns_init(struct lws_context *context)
 		lwsl_cx_err(context, "ares init error %s", ares_strerror(error));
 		return 1;
 	}
+	ares_options options;
+	options.timeout = botable[0];
+	int optmask = ARES_OPT_TIMEOUTMS;
+	error = ares_init_options(dns->ares_resolver_channel);
+	if (error != 0)
+	{
+		lwsl_cx_err(context, "ares init channel error %s", ares_strerror(error));
+		return 1;
+	}
 	return 0;
 #endif
 
@@ -712,9 +721,6 @@ static int
 clean(struct lws_dll2 *d, void *user)
 {
 	lws_adns_q_destroy(lws_container_of(d, lws_adns_q_t, list));
-#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
-	ares_library_cleanup();
-#endif
 
 	return 0;
 }
@@ -745,6 +751,10 @@ ns_clean(struct lws_dll2 *d, void *user)
 void
 lws_async_dns_deinit(lws_async_dns_t *dns)
 {
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	ares_destroy(dns->ares_resolver_channel);
+	ares_library_cleanup();
+#endif
 	lws_dll2_foreach_safe(&dns->nameservers, NULL, ns_clean);
 	lws_dll2_foreach_safe(&dns->cached, NULL, cache_clean);
 }
