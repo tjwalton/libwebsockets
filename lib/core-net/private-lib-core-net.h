@@ -252,11 +252,7 @@ __lws_sul_service_ripe(lws_dll2_owner_t *own, int num_own, lws_usec_t usnow);
 
 typedef struct lws_async_dns_server {
 	lws_dll2_t		list;
-#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
-	ares_channel *		ares_resolver_channel; /* ares context */
-#else
 	lws_sockaddr46 		sa46; /* nameserver */
-#endif
 
 	lws_dll2_owner_t	waiting;
 
@@ -273,6 +269,9 @@ typedef struct lws_async_dns {
 	lws_dll2_owner_t	cached;
 
 	struct lws_context	*cx;
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	ares_channel	ares_resolver_channel; /* ares context */
+#endif
 } lws_async_dns_t;
 
 #define lws_async_dns_from_server(_s) ((lws_async_dns_t *)_s->list.owner)

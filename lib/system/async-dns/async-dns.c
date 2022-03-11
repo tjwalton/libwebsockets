@@ -349,6 +349,7 @@ callback_async_dns(struct lws *wsi, enum lws_callback_reasons reason,
 lws_async_dns_server_t *
 __lws_async_dns_server_find(lws_async_dns_t *dns, const lws_sockaddr46 *sa46)
 {
+#if !defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
 	lws_start_foreach_dll(struct lws_dll2 *, d, dns->nameservers.head) {
 		lws_async_dns_server_t *s = lws_container_of(d,
 						lws_async_dns_server_t, list);
@@ -356,7 +357,7 @@ __lws_async_dns_server_find(lws_async_dns_t *dns, const lws_sockaddr46 *sa46)
 		if (lws_sa46_compare_ads(sa46, &s->sa46))
 			return s;
 	} lws_end_foreach_dll(d);
-
+#endif
 	return NULL;
 }
 
@@ -518,10 +519,10 @@ lws_async_dns_init(struct lws_context *context)
 		lwsl_cx_err(context, "ares init error %s", ares_strerror(error));
 		return 1;
 	}
-	ares_options options;
-	options.timeout = botable[0];
+	struct ares_options options;
 	int optmask = ARES_OPT_TIMEOUTMS;
-	error = ares_init_options(dns->ares_resolver_channel);
+	options.timeout = (int)botable[0];
+	error = ares_init_options(&dns->ares_resolver_channel, &options, optmask);
 	if (error != 0)
 	{
 		lwsl_cx_err(context, "ares init channel error %s", ares_strerror(error));
