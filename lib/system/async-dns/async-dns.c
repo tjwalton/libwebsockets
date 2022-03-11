@@ -24,6 +24,9 @@
 
 #include "private-lib-core.h"
 #include "private-lib-async-dns.h"
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+#include <ares.h>
+#endif
 
 static const uint32_t botable[] = { 300, 500, 700, 1250, 5000
 				/* in case everything just dog slow */ };
@@ -508,6 +511,16 @@ lws_async_dns_init(struct lws_context *context)
 
 	dns->cx = context;
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	int error = ares_library_init(ARES_LIB_INIT_ALL);
+	if (error != 0)
+	{
+		lwsl_cx_err(context, "ares init error %s", ares_strerror(error));
+		return 1;
+	}
+	return 0;
+#endif
+
 	n = lws_plat_asyncdns_init(context, dns);
 	if (n < 0 && !dns->nameservers.count) {
 		lwsl_cx_warn(context, "no valid dns server, retry");
@@ -699,6 +712,9 @@ static int
 clean(struct lws_dll2 *d, void *user)
 {
 	lws_adns_q_destroy(lws_container_of(d, lws_adns_q_t, list));
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	ares_library_cleanup();
+#endif
 
 	return 0;
 }

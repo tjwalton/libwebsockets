@@ -156,6 +156,7 @@ option(LWS_WITH_ALSA "Enable alsa audio example" OFF)
 option(LWS_WITH_GTK "Enable gtk example" OFF)
 option(LWS_WITH_FTS "Full Text Search support" OFF)
 option(LWS_WITH_SYS_ASYNC_DNS "Nonblocking internal IPv4 + IPv6 DNS resolver" OFF)
+option(LWS_WITH_SYS_ASYNC_DNS_USE_CARES "Make nonblocking DNS resolver use c-ares library" OFF)
 option(LWS_WITH_SYS_NTPCLIENT "Build in tiny ntpclient good for tls date validation and run via lws_system" OFF)
 option(LWS_WITH_SYS_DHCP_CLIENT "Build in tiny DHCP client" OFF)
 option(LWS_WITH_HTTP_BASIC_AUTH "Support Basic Auth" ON)
@@ -538,6 +539,11 @@ set(LWS_LIBMOUNT_LIBRARIES CACHE PATH "Path to the libmount library")
 # yourself and point to them here
 set(LWS_EXT_PTHREAD_INCLUDE_DIR CACHE PATH "Path to an external pthreads include directory")
 set(LWS_EXT_PTHREAD_LIBRARIES CACHE PATH "Path to an external pthreads library")
+
+# if you set LWS_WITH_SYS_ASYNC_DNS_USE_CARES, pass paths to c-ares include and library
+# must be c-ares 1.16.0 or later for ares_getaddrinfo
+set(LWS_EXT_CARES_INCLUDE_DIR CACHE PATH "Path to external c-ares include directory")
+set(LWS_EXT_CARES_LIBRARIES CACHE PATH "Path to external c-ares library")
 
 
 if (LWS_WITH_HTTP_STREAM_COMPRESSION)
@@ -982,6 +988,21 @@ if (LWS_WITH_SQLITE3)
 	list(APPEND LIB_LIST ${SQLITE3_LIBRARIES})
 endif()
 
+
+if (LWS_WITH_SYS_ASYNC_DNS_USE_CARES AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+	if (NOT LWS_EXT_CARES_INCLUDE_DIR STREQUAL "")
+		include_directories(${LWS_EXT_CARES_INCLUDE_DIR})
+		message("c-ares include dir: ${LWS_EXT_CARES_INCLUDE_DIR}")
+	else()
+		message(FATAL_ERROR "Cannot use c-ares without include dir")
+	endif()
+	if (NOT LWS_EXT_CARES_LIBRARIES STREQUAL "")
+		message("c-ares libraries: ${LWS_EXT_CARES_LIBRARIES}")
+		list(APPEND LIB_LIST ${LWS_EXT_CARES_LIBRARIES})
+	else()
+		message(FATAL_ERROR "Cannot use c-ares without library")
+	endif()
+endif()
 
 if (LWS_WITH_HUBBUB)
 	find_library(LIBHUBBUB_LIBRARIES NAMES hubbub)
