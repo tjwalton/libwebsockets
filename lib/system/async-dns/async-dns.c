@@ -344,12 +344,31 @@ callback_async_dns(struct lws *wsi, enum lws_callback_reasons reason,
 	return 0;
 }
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+static void
+callback_async_dns_cares(void *arg, int status, int timeouts,
+			 struct ares_addrinfo *result)
+{
+	struct lws *wsi = (struct lws *)arg;
+	struct lws_context * context = lws_get_context(wsi);
+	struct lws_async_dns *dns = &(context->async_dns);
+	(void)dns;//TODO: fix
+	int error = status;
+	if (status == ARES_SUCCESS)
+	{
+		lwsl_cx_err(context, "cares callback ARES_SUCCESS %d", error);
+		error = lws_adns_handle_cares_result(result);
+	}
+	ares_freeaddrinfo(result);
+	lwsl_cx_err(context, "cares callback result %d", error);
+}
+#endif
+
 /* require: context lock */
 
 lws_async_dns_server_t *
 __lws_async_dns_server_find(lws_async_dns_t *dns, const lws_sockaddr46 *sa46)
 {
-#if !defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
 	lws_start_foreach_dll(struct lws_dll2 *, d, dns->nameservers.head) {
 		lws_async_dns_server_t *s = lws_container_of(d,
 						lws_async_dns_server_t, list);
@@ -357,7 +376,6 @@ __lws_async_dns_server_find(lws_async_dns_t *dns, const lws_sockaddr46 *sa46)
 		if (lws_sa46_compare_ads(sa46, &s->sa46))
 			return s;
 	} lws_end_foreach_dll(d);
-#endif
 	return NULL;
 }
 
@@ -528,6 +546,9 @@ lws_async_dns_init(struct lws_context *context)
 		lwsl_cx_err(context, "ares init channel error %s", ares_strerror(error));
 		return 1;
 	}
+	// still need to add a DNS "server" to the list as that's how it works
+	lws_sockaddr46 sa46t;
+	__lws_async_dns_server_add(dns, &sa46t);
 	return 0;
 #endif
 
@@ -970,6 +991,7 @@ struct temp_q {
 
 lws_async_dns_retcode_t
 lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
+		    uint16_t port,
 		    adns_query_type_t qtype, lws_async_dns_cb_t cb,
 		    struct lws *wsi, void *opaque, struct lws_adns_q **pq)
 {
@@ -1199,6 +1221,7 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 	if (!wsi)
 		q->standalone_cb = cb;
 
+#if !defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
 	/* schedule a retry according to the retry policy on the wsi */
 	if (lws_retry_sul_schedule_retry_wsi(dsrv->wsi, &q->sul,
 					 lws_async_dns_sul_cb_retry, &q->retry))
@@ -1206,6 +1229,7 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 
 	/* fail us if we can't write by this timeout */
 	lws_sul_schedule(context, 0, &q->write_sul, sul_cb_write, LWS_US_PER_SEC);
+#endif
 
 	/*
 	 * We may rewrite the copy at +sizeof(*q) for CNAME recursion.  Keep
@@ -1213,6 +1237,7 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 	 * entry for the original name, not the last CNAME we met.
 	 */
 
+	const char * original_name = name;
 	p = (char *)&q[1];
 	while (nlen--) {
 		*p++ = (char)tolower(*name++);
@@ -1221,7 +1246,26 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 	*p = '\0';
 	p[DNS_MAX] = '\0';
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+	struct ares_addrinfo_hints hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family =
+#if defined(LWS_WITH_IPV6)
+		AF_UNSPEC
+#else
+		AF_INET
+#endif
+	;
+	char service[6];
+	sprintf(service, "%u", port);
+	lwsl_cx_err(context, "calling ares_getaddrinfo for name %s port %s", original_name, service);
+	ares_getaddrinfo(dns->ares_resolver_channel, original_name,
+			 service, &hints, callback_async_dns_cares, wsi);
+#else
+	/* port only used for c-ares */
+	(void)port;
 	lws_callback_on_writable(dsrv->wsi);
+#endif
 
 	lws_dll2_add_head(&q->list, &dsrv->waiting);
 
@@ -1229,7 +1273,7 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 	q->go_nogo = METRES_NOGO;
 	/* caliper is reported in lws_adns_q_destroy */
 
-	lwsl_cx_info(context, "created new query: %s", name);
+	lwsl_cx_info(context, "created new query: %s", original_name);
 	lws_adns_dump(dns);
 
 	return LADNS_RET_CONTINUING;

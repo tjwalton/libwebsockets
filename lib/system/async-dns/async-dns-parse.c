@@ -24,6 +24,9 @@
 
 #include "private-lib-core.h"
 #include "private-lib-async-dns.h"
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+#include <ares.h>
+#endif
 
 
 /* updates *dest, returns chars used from ls directly, else -1 for fail */
@@ -708,3 +711,16 @@ fail_out:
 	lws_adns_q_destroy(q);
 }
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+int
+lws_adns_handle_cares_result(struct ares_addrinfo * addrinfo)
+{
+	if (addrinfo->cnames)
+		lwsl_err("%s: cares cname %s\n", __func__, addrinfo->cnames->name);
+	if (addrinfo->nodes)
+		lwsl_err("%s: cares nodes ttl %d\n", __func__, addrinfo->nodes->ai_ttl);
+	else
+		lwsl_err("%s: cares no nodes\n", __func__);
+	return 1;
+}
+#endif

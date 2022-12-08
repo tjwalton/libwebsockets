@@ -890,7 +890,7 @@ lws_create_adopt_udp(struct lws_vhost *vhost, const char *ads, int port,
 		 * kind to ask for until we get the dns back).  But it is bound
 		 * to a vhost and can be cleaned up from that at vhost destroy.
 		 */
-		n = lws_async_dns_query(vhost->context, 0, ads,
+		n = lws_async_dns_query(vhost->context, 0, ads, (uint16_t) port,
 					LWS_ADNS_RECORD_A,
 					lws_create_adopt_udp2, wsi,
 					(void *)ifname, NULL);

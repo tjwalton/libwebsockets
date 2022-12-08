@@ -363,7 +363,7 @@ solo:
 	if (lws_fi(&wsi->fic, "dnsfail"))
 		return lws_client_connect_3_connect(wsi, NULL, NULL, -4, NULL);
 	else
-		n = lws_async_dns_query(wsi->a.context, wsi->tsi, adsin,
+		n = lws_async_dns_query(wsi->a.context, wsi->tsi, adsin, wsi->conn_port,
 				LWS_ADNS_RECORD_A, lws_client_connect_3_connect,
 				wsi, NULL, NULL);
 

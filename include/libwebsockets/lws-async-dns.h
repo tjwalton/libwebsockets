@@ -57,6 +57,7 @@ struct lws_async_dns;
  * \param context: the lws_context
  * \param tsi: thread service index (usually 0)
  * \param name: DNS name to look up
+ * \param port: port that will be connected to (used by c-ares)
  * \param qtype: type of query (A, AAAA etc)
  * \param cb: query completion callback
  * \param wsi: wsi if the query is related to one
@@ -74,6 +75,7 @@ struct lws_async_dns;
  */
 LWS_VISIBLE LWS_EXTERN lws_async_dns_retcode_t
 lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
+		    uint16_t port,
 		    adns_query_type_t qtype, lws_async_dns_cb_t cb,
 		    struct lws *wsi, void *opaque, struct lws_adns_q **pq);
 

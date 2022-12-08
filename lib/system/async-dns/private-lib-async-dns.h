@@ -160,5 +160,10 @@ lws_adns_dump(lws_async_dns_t *dns);
 #define lws_adns_dump(_d)
 #endif
 
+#if defined(LWS_WITH_SYS_ASYNC_DNS_USE_CARES)
+int
+lws_adns_handle_cares_result(struct ares_addrinfo * addrinfo);
+#endif
+
 #endif
 
